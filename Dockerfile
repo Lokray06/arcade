@@ -17,7 +17,7 @@ RUN pacman -S --noconfirm \
 # Conditional Niri/Wayland installation
 RUN if [ "$INSTALL_NIRI" = "true" ]; then \
     pacman -S --noconfirm waypipe niri sway wayland-utils xorg-xwayland \
-    xdg-desktop-portal mesa alacritty fuzzel; \
+    xdg-desktop-portal mesa alacritty fuzzel xwayland-satellite vulkan-intel vulkan-radeon vulkan-icd-loader; \
     fi
 
 # 3. Create User & Sudoers (Updated shell to fish)

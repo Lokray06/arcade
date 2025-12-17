@@ -15,6 +15,9 @@ services:
       - "${SSH_PORT}:22"
     volumes:
       - arch-home:/home/${USER_NAME}
+    devices:
+      - /dev/dri:/dev/dri
+    shm_size: '2gb'
 
 volumes:
   arch-home:
