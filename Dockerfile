@@ -12,7 +12,7 @@ RUN pacman -Sy --noconfirm archlinux-keyring && \
 ARG INSTALL_NIRI
 RUN pacman -S --noconfirm \
     base base-devel sudo openssh git fish ripgrep fd python curl wget unzip vim nvim tmux \
-    bat eza
+    bat eza fastfetch waybar swaylock hyprpicker
 
 # Conditional Niri/Wayland installation
 RUN if [ "$INSTALL_NIRI" = "true" ]; then \
