@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  arch-dev:
+    build:
+      context: .
+      args:
+        USER_NAME: ${USER_NAME}
+        USER_PASSWORD: ${USER_PASSWORD}
+        DOTFILES_REPO: ${DOTFILES_REPO}
+        INSTALL_NIRI: ${INSTALL_NIRI:-false} # Default to false if not set
+    container_name: arch-dev
+    restart: unless-stopped
+    ports:
+      - "${SSH_PORT}:22"
+    volumes:
+      - arch-home:/home/${USER_NAME}
+
+volumes:
+  arch-home:
