@@ -1,18 +1,20 @@
-version: "3.9"
-
 services:
-  arch-dev:
+  arcade:
     build:
       context: .
       args:
         USER_NAME: ${USER_NAME}
         USER_PASSWORD: ${USER_PASSWORD}
         DOTFILES_REPO: ${DOTFILES_REPO}
-        INSTALL_NIRI: ${INSTALL_NIRI:-false} # Default to false if not set
-    container_name: arch-dev
+        INSTALL_NIRI: ${INSTALL_NIRI:-true} # Default to true
+    environment:
+      - USER_NAME=${USER_NAME} # Persists the variable to the container environment
+      - XDG_RUNTIME_DIR=/tmp/runtime-${USER_NAME}
+    container_name: arcade
     restart: unless-stopped
     ports:
       - "${SSH_PORT}:22"
+      - "5900:5900"   # VNC port
     volumes:
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
       - arcade-home:/home/${USER_NAME}
@@ -20,7 +22,7 @@ services:
       - /dev/dri:/dev/dri
     shm_size: '2gb'
     device_cgroup_rules:
-      - 'c 226:* rmw' # Allows access to GPU rendering nodes
+      - 'c 226:* rmw'
 
 volumes:
   arcade-home:

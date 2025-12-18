@@ -1,72 +1,70 @@
 # -----------------------------
-# arch-dev Dockerfile
+# arch-dev Dockerfile (VNC-enabled)
 # -----------------------------
 FROM archlinux:latest
 
-# 1. Update Keyring FIRST to fix "package not found" or "invalid signature" errors
-#    Then perform a full system update.
+# 1. Update Keyring & system
 RUN pacman -Sy --noconfirm archlinux-keyring && \
     pacman -Syu --noconfirm
 
-# 2. Install Dependencies (Updated with bat and eza)
+# 2. Install dependencies
 ARG INSTALL_NIRI
 RUN pacman -S --noconfirm \
     base base-devel sudo openssh git fish ripgrep fd python curl wget unzip vim nvim tmux \
-    bat eza fastfetch waybar swaylock hyprpicker
+    bat eza fastfetch waybar swaylock hyprpicker \
+    weston wayvnc cage libinput xorg-xwayland mesa mesa-utils libpipewire libwireplumber dbus vulkan-intel vulkan-radeon vulkan-icd-loader \
+    chromium kitty fuzzel rofi xcursor-themes
 
-# Conditional Niri/Wayland installation
+# Conditional Niri/Wayland packages
 RUN if [ "$INSTALL_NIRI" = "true" ]; then \
-    pacman -S --noconfirm waypipe niri sway wayland-utils xorg-xwayland \
-    xdg-desktop-portal mesa alacritty fuzzel xwayland-satellite vulkan-intel vulkan-radeon vulkan-icd-loader; \
+    pacman -S --noconfirm waypipe niri sway wayland-utils xdg-desktop-portal \
+    xwayland-satellite alacritty fuzzel; \
     fi
 
-RUN echo "mkdir -p /tmp/runtime-$USER_NAME && chmod 700 /tmp/runtime-$USER_NAME" >> /home/$USER_NAME/.bashrc
+RUN chmod 755 /usr /usr/bin /usr/lib /usr/share /etc /etc/xdg && \
+    find /usr /etc -type d -exec chmod 755 {} +
 
-# 3. Create User & Sudoers (Updated shell to fish)
+# 3. Create user
 ARG USER_NAME
+ENV USER_NAME=$USER_NAME
+ENV XDG_RUNTIME_DIR=/tmp/runtime-$USER_NAME
 ARG USER_PASSWORD
 RUN useradd -m -s /usr/bin/fish $USER_NAME && \
     echo "$USER_NAME:$USER_PASSWORD" | chpasswd && \
     echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USER_NAME
 
-# 4. Install yay (Must be done as non-root user)
+# 4. Copy VNC launcher (Add --chown here)
+COPY --chown=$USER_NAME:$USER_NAME launch_vnc.sh /home/${USER_NAME}/launch_vnc.sh
+RUN chmod +x /home/${USER_NAME}/launch_vnc.sh
+
+# 5. Switch to user for dotfiles & env
 USER $USER_NAME
 WORKDIR /home/$USER_NAME
 
-# --- MOVE THE ENV SETUP BELOW 'USER root' ---
-# 5. Setup Dotfiles (Bare Repo Method)
 ARG DOTFILES_REPO
 RUN if [ -n "$DOTFILES_REPO" ]; then \
-    # Install OhMyPosh
     curl -s https://ohmyposh.dev/install.sh | bash -s && \
-    # Clone as a bare repo into a hidden folder
     git clone --separate-git-dir=$HOME/.dotfiles $DOTFILES_REPO $HOME/dotfiles-temp && \
-    # Move the files to HOME and remove the temp folder
-    cp -rvT $HOME/dotfiles-temp $HOME && \
-    rm -rf $HOME/dotfiles-temp && \
-    # Setup the alias for managing them (optional but recommended)
+    cp -rvT $HOME/dotfiles-temp $HOME && rm -rf $HOME/dotfiles-temp && \
     echo "alias dot='/usr/bin/git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'" >> $HOME/.bashrc; \
-    else \
-    echo "No dotfiles repo provided"; \
     fi
-# 6. Configure Runtime Environment
+
 USER root
-# Only setup XDG_RUNTIME_DIR if Niri is being used
-RUN if [ "$INSTALL_NIRI" = "true" ]; then \
-    mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix && \
+# 6. Setup XDG_RUNTIME_DIR
+RUN mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix && \
     export XDG_RUNTIME_DIR=/tmp/runtime-$USER_NAME && \
     mkdir -p $XDG_RUNTIME_DIR && \
-    chown $USER_NAME:$USER_NAME $XDG_RUNTIME_DIR && \
-    chmod 700 $XDG_RUNTIME_DIR && \
-    echo "export XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> /etc/environment; \
-    fi
+    chown $USER_NAME:$USER_NAME $XDG_RUNTIME_DIR && chmod 700 $XDG_RUNTIME_DIR && \
+    echo "export XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> /etc/environment
 
-# Setup SSH keys and directory
-RUN mkdir -p /run/sshd && \
-    ssh-keygen -A
+# Ensure the user is part of the 'video' and 'render' groups for GPU/Display access
+RUN usermod -aG video,render $USER_NAME
 
-# Expose SSH port
+# 7. Setup SSH
+RUN mkdir -p /run/sshd && ssh-keygen -A
 EXPOSE 22
+# 8. Expose VNC port
+EXPOSE 5900
 
-# 7. CMD: Start SSH Daemon
-CMD ["/usr/sbin/sshd", "-D"]
+# 9. Default command: Start SSH as root, VNC as user
+CMD ["/bin/bash", "-c", "/usr/sbin/sshd && sudo -u $USER_NAME -E /home/$USER_NAME/launch_vnc.sh"]
