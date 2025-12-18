@@ -20,6 +20,8 @@ RUN if [ "$INSTALL_NIRI" = "true" ]; then \
     xdg-desktop-portal mesa alacritty fuzzel xwayland-satellite vulkan-intel vulkan-radeon vulkan-icd-loader; \
     fi
 
+RUN echo "mkdir -p /tmp/runtime-$USER_NAME && chmod 700 /tmp/runtime-$USER_NAME" >> /home/$USER_NAME/.bashrc
+
 # 3. Create User & Sudoers (Updated shell to fish)
 ARG USER_NAME
 ARG USER_PASSWORD
@@ -32,7 +34,6 @@ USER $USER_NAME
 WORKDIR /home/$USER_NAME
 
 # --- MOVE THE ENV SETUP BELOW 'USER root' ---
-
 # 5. Setup Dotfiles (Bare Repo Method)
 ARG DOTFILES_REPO
 RUN if [ -n "$DOTFILES_REPO" ]; then \
@@ -52,6 +53,7 @@ RUN if [ -n "$DOTFILES_REPO" ]; then \
 USER root
 # Only setup XDG_RUNTIME_DIR if Niri is being used
 RUN if [ "$INSTALL_NIRI" = "true" ]; then \
+    mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix && \
     export XDG_RUNTIME_DIR=/tmp/runtime-$USER_NAME && \
     mkdir -p $XDG_RUNTIME_DIR && \
     chown $USER_NAME:$USER_NAME $XDG_RUNTIME_DIR && \

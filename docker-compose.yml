@@ -14,10 +14,13 @@ services:
     ports:
       - "${SSH_PORT}:22"
     volumes:
-      - arch-home:/home/${USER_NAME}
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
+      - arcade-home:/home/${USER_NAME}
     devices:
       - /dev/dri:/dev/dri
     shm_size: '2gb'
+    device_cgroup_rules:
+      - 'c 226:* rmw' # Allows access to GPU rendering nodes
 
 volumes:
-  arch-home:
+  arcade-home:
